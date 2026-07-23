@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import os
+import re
 from typing import Any, Self
 
 import numpy as np
@@ -11,6 +12,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PrivateAttr,
     TypeAdapter,
     ValidationInfo,
     field_validator,
@@ -19,7 +21,11 @@ from pydantic import (
 from ruamel.yaml import YAML
 
 from frigate.const import REGEX_JSON
-from frigate.detectors import DetectorConfig, ModelConfig
+from frigate.detectors import (
+    DetectorConfig,
+    ModelConfig,
+    assign_detector_instances,
+)
 from frigate.detectors.detector_config import BaseDetectorConfig
 from frigate.plus import PlusApi
 from frigate.util.builtin import (
@@ -109,7 +115,7 @@ DEFAULT_CONFIG = f"""
 mqtt:
   enabled: False
 
-{_render_default_yaml({"detectors": NEW_CONFIG_DETECTORS, "model": DEFAULT_MODEL})}
+{_render_default_yaml({"detectors": NEW_CONFIG_DETECTORS, "models": {"default": DEFAULT_MODEL}})}
 cameras: {{}}  # No cameras defined, UI wizard should be used
 version: {CURRENT_CONFIG_VERSION}
 """
@@ -503,10 +509,10 @@ class FrigateConfig(FrigateBaseModel):
         title="Detector hardware",
         description="Configuration for object detectors (CPU, GPU, ONNX backends) and any detector-specific model settings.",
     )
-    model: ModelConfig = Field(
-        default_factory=ModelConfig,
-        title="Detection model",
-        description="Settings to configure a custom object detection model and its input shape.",
+    models: dict[str, ModelConfig] = Field(
+        default_factory=lambda: {"default": ModelConfig()},
+        title="Detection models",
+        description="Named object detection models. Cameras select a model with detect.model; detectors are assigned to models automatically.",
     )
 
     # GenAI config (named provider configs: name -> GenAIConfig)
@@ -621,10 +627,36 @@ class FrigateConfig(FrigateBaseModel):
     )
 
     _plus_api: PlusApi
+    _detector_instances: dict[str, BaseDetectorConfig] = PrivateAttr(
+        default_factory=dict
+    )
 
     @property
     def plus_api(self) -> PlusApi:
         return self._plus_api
+
+    @property
+    def detector_instances(self) -> dict[str, BaseDetectorConfig]:
+        """Runtime detector instances expanded per assigned model."""
+        return self._detector_instances
+
+    def model_for_camera(self, camera_name: str) -> ModelConfig:
+        """Return the detection model config used by the given camera."""
+        return self.models[self.cameras[camera_name].detect.model]
+
+    @field_validator("models")
+    @classmethod
+    def validate_model_names(cls, v: dict[str, ModelConfig]):
+        if not v:
+            raise ValueError("At least one model must be defined under models")
+
+        for name in v.keys():
+            if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+                raise ValueError(
+                    f"Invalid model name '{name}'. Model names can only contain letters, numbers, underscores, and hyphens"
+                )
+
+        return v
 
     @model_validator(mode="after")
     def post_validation(self, info: ValidationInfo) -> Self:
@@ -671,7 +703,12 @@ class FrigateConfig(FrigateBaseModel):
                 )
 
         # set default min_score for object attributes
-        for attribute in self.model.all_attributes:
+        all_model_attributes = {
+            attribute
+            for model in self.models.values()
+            for attribute in model.all_attributes
+        }
+        for attribute in sorted(all_model_attributes):
             existing = self.objects.filters.get(attribute)
             if existing is None:
                 self.objects.filters[attribute] = FilterConfig(min_score=0.7)
@@ -721,8 +758,18 @@ class FrigateConfig(FrigateBaseModel):
             exclude_unset=True,
         )
 
+        # capture raw model dumps before plus models are loaded so detector
+        # instances can run their own detector-specific plus validation
+        raw_model_dumps = {
+            name: model.model_dump(exclude_unset=True, warnings="none")
+            for name, model in self.models.items()
+        }
+
+        for model in self.models.values():
+            model.check_and_load_plus_model(self.plus_api)
+
+        adapter = TypeAdapter(DetectorConfig)
         for key, detector in self.detectors.items():
-            adapter = TypeAdapter(DetectorConfig)
             model_dict = (
                 detector
                 if isinstance(detector, dict)
@@ -737,27 +784,6 @@ class FrigateConfig(FrigateBaseModel):
                 )
                 detector_config.model = None
 
-            model_config = self.model.model_dump(exclude_unset=True, warnings="none")
-
-            if detector_config.model_path:
-                model_config["path"] = detector_config.model_path
-
-            if "path" not in model_config:
-                if detector_config.type == "cpu" or detector_config.type.endswith(
-                    "_tfl"
-                ):
-                    model_config["path"] = "/cpu_model.tflite"
-                elif detector_config.type == "edgetpu":
-                    model_config["path"] = "/edgetpu_model.tflite"
-                elif detector_config.type == "openvino":
-                    for default_key, default_value in DEFAULT_MODEL.items():
-                        model_config.setdefault(default_key, default_value)
-
-            model = ModelConfig.model_validate(model_config)
-            model.check_and_load_plus_model(self.plus_api, detector_config.type)
-            model.compute_model_hash()
-            labelmap_objects = model.merged_labelmap.values()
-            detector_config.model = model
             self.detectors[key] = detector_config
 
         for name, camera in self.cameras.items():
@@ -784,6 +810,21 @@ class FrigateConfig(FrigateBaseModel):
             camera_config: CameraConfig = CameraConfig.model_validate(
                 {"name": name, **merged_config}
             )
+
+            # resolve which named model this camera uses
+            if camera_config.detect.model is not None:
+                if camera_config.detect.model not in self.models:
+                    raise ValueError(
+                        f"Camera {name} references model '{camera_config.detect.model}' which is not defined under models. Defined models: {', '.join(self.models.keys())}"
+                    )
+            elif len(self.models) == 1:
+                camera_config.detect.model = next(iter(self.models))
+            elif "default" in self.models:
+                camera_config.detect.model = "default"
+            else:
+                raise ValueError(
+                    f"Camera {name} does not specify detect.model and multiple models are defined. Set detect.model on the camera or globally, or name one of the models 'default'."
+                )
 
             if camera_config.ffmpeg.hwaccel_args == "auto":
                 camera_config.ffmpeg.hwaccel_args = self.ffmpeg.hwaccel_args
@@ -1005,7 +1046,10 @@ class FrigateConfig(FrigateBaseModel):
             verify_profile_overrides_match_base(camera_config)
             verify_autotrack_zones(camera_config)
             verify_motion_and_detect(camera_config)
-            verify_objects_track(camera_config, labelmap_objects)
+            verify_objects_track(
+                camera_config,
+                self.models[camera_config.detect.model].merged_labelmap.values(),
+            )
             verify_lpr_and_face(self, camera_config)
 
         # Validate camera profiles reference top-level profile definitions
@@ -1022,8 +1066,11 @@ class FrigateConfig(FrigateBaseModel):
             config.name = name
 
         self.objects.parse_all_objects(self.cameras)
-        self.model.create_colormap(sorted(self.objects.all_objects))
-        self.model.check_and_load_plus_model(self.plus_api)
+        for model in self.models.values():
+            model.create_colormap(sorted(self.objects.all_objects))
+
+        # expand detectors into per-model runtime instances
+        self.__build_detector_instances(raw_model_dumps)
 
         # Check audio transcription and audio detection requirements
         if self.audio_transcription.enabled:
@@ -1053,6 +1100,81 @@ class FrigateConfig(FrigateBaseModel):
                 )
 
         return self
+
+    def __build_detector_instances(
+        self, raw_model_dumps: dict[str, dict[str, Any]]
+    ) -> None:
+        """Expand detector entries into runtime instances, one per assigned model."""
+        used_models = list(
+            dict.fromkeys(camera.detect.model for camera in self.cameras.values())
+        ) or list(self.models.keys())
+
+        unused_models = set(self.models.keys()) - set(used_models)
+        if unused_models:
+            logger.warning(
+                f"Models {', '.join(sorted(unused_models))} are defined but not used by any camera, no detector instances will be created for them"
+            )
+
+        assignments = assign_detector_instances(
+            {key: detector.type for key, detector in self.detectors.items()},
+            used_models,
+        )
+
+        models_per_detector: dict[str, int] = {}
+        for _, detector_key, _ in assignments:
+            models_per_detector[detector_key] = (
+                models_per_detector.get(detector_key, 0) + 1
+            )
+
+        instances: dict[str, BaseDetectorConfig] = {}
+
+        for instance_name, detector_key, model_key in assignments:
+            instance = self.detectors[detector_key].model_copy(deep=True)
+            instance.model_key = model_key
+
+            model_dict = raw_model_dumps[model_key].copy()
+
+            if instance.model_path:
+                if models_per_detector[detector_key] > 1:
+                    logger.warning(
+                        f"Detector {detector_key} runs multiple models, its model_path will be ignored"
+                    )
+                else:
+                    model_dict["path"] = instance.model_path
+
+            if "path" not in model_dict:
+                if instance.type == "cpu" or instance.type.endswith("_tfl"):
+                    model_dict["path"] = "/cpu_model.tflite"
+                elif instance.type == "edgetpu":
+                    model_dict["path"] = "/edgetpu_model.tflite"
+                elif instance.type == "openvino":
+                    for default_key, default_value in DEFAULT_MODEL.items():
+                        model_dict.setdefault(default_key, default_value)
+
+            model = ModelConfig.model_validate(model_dict)
+
+            try:
+                model.check_and_load_plus_model(self.plus_api, instance.type)
+            except ValueError as e:
+                raise ValueError(f"Model '{model_key}': {e}") from e
+
+            model.compute_model_hash()
+            instance.model = model
+            instances[instance_name] = instance
+            logger.log(
+                logging.INFO if len(used_models) > 1 else logging.DEBUG,
+                f"Detector instance {instance_name} ({instance.type}) will run model '{model_key}'",
+            )
+
+        # populate user-facing detector entries with their first assigned
+        # model for display purposes
+        for instance_name, detector_key, model_key in assignments:
+            detector = self.detectors[detector_key]
+            if detector.model is None:
+                detector.model = instances[instance_name].model
+                detector.model_key = model_key
+
+        self._detector_instances = instances
 
     @field_validator("cameras")
     @classmethod

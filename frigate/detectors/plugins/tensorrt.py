@@ -82,6 +82,7 @@ class HostDeviceMem:
 
 class TensorRtDetector(DetectionApi):
     type_key = DETECTOR_KEY
+    supports_multiple_models = True
 
     def _load_engine(self, model_path):
         try:

@@ -59,6 +59,7 @@ export interface CameraConfig {
     height: number;
     max_disappeared: number;
     min_initialized: number;
+    model: string;
     stationary: {
       interval: number;
       max_frames: {
@@ -394,6 +395,30 @@ export type GenAIAgentConfig = {
   runtime_options?: Record<string, unknown>;
 };
 
+export interface ModelConfig {
+  height: number;
+  input_pixel_format: string;
+  input_tensor: string;
+  labelmap: Record<string, unknown>;
+  labelmap_path: string | null;
+  model_type: string;
+  path: string | null;
+  width: number;
+  colormap: { [key: string]: [number, number, number] };
+  attributes_map: { [key: string]: string[] };
+  all_attributes: string[];
+  plus?: {
+    name: string;
+    id: string;
+    trainDate: string;
+    baseModel: string;
+    isBaseModel: boolean;
+    supportedDetectors: string[];
+    width: number;
+    height: number;
+  } | null;
+}
+
 export interface FrigateConfig {
   version: string;
   safe_mode: boolean;
@@ -446,6 +471,7 @@ export interface FrigateConfig {
     height: number | null;
     max_disappeared: number | null;
     min_initialized: number | null;
+    model: string | null;
     stationary: {
       interval: number | null;
       max_frames: {
@@ -512,29 +538,10 @@ export interface FrigateConfig {
     logs: Record<string, string>;
   };
 
-  model: {
-    height: number;
-    input_pixel_format: string;
-    input_tensor: string;
-    labelmap: Record<string, unknown>;
-    labelmap_path: string | null;
-    model_type: string;
-    path: string | null;
-    width: number;
-    colormap: { [key: string]: [number, number, number] };
-    attributes_map: { [key: string]: string[] };
-    all_attributes: string[];
-    plus?: {
-      name: string;
-      id: string;
-      trainDate: string;
-      baseModel: string;
-      isBaseModel: boolean;
-      supportedDetectors: string[];
-      width: number;
-      height: number;
-    } | null;
-  };
+  // legacy single-model block, mirrors the default entry of `models`
+  model: ModelConfig;
+
+  models: { [modelKey: string]: ModelConfig };
 
   motion: Record<string, unknown> | null;
 

@@ -86,6 +86,10 @@
       "label": "Enable object detection",
       "description": "Enable or disable object detection for this camera."
     },
+    "model": {
+      "label": "Detection model name",
+      "description": "Name of the model (key under `models`) used by this camera. Defaults to the only defined model, or the model named 'default'."
+    },
     "height": {
       "label": "Detect height",
       "description": "Height (pixels) of frames used for the detect stream; leave empty to use the native stream resolution."

@@ -228,13 +228,14 @@ detectors: # <---- add detectors
     device: GPU
 
 # We will use the default MobileNet_v2 model from OpenVINO.
-model:
-  width: 300
-  height: 300
-  input_tensor: nhwc
-  input_pixel_format: bgr
-  path: /openvino-model/ssdlite_mobilenet_v2.xml
-  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+models:
+  default:
+    width: 300
+    height: 300
+    input_tensor: nhwc
+    input_pixel_format: bgr
+    path: /openvino-model/ssdlite_mobilenet_v2.xml
+    labelmap_path: /openvino-model/coco_91cl_bkgr.txt
 
 cameras:
   name_of_your_camera:

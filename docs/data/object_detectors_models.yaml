@@ -34,12 +34,13 @@ edgeTPU:
             type: edgetpu
             device: usb
 
-        model:
-          model_type: yolo-generic
-          width: 320 # <--- should match the imgsize of the model, typically 320
-          height: 320 # <--- should match the imgsize of the model, typically 320
-          path: /config/model_cache/yolov9-s-relu6-best_320_int8_edgetpu.tflite
-          labelmap_path: /config/labels-coco17.txt
+        models:
+          default:
+            model_type: yolo-generic
+            width: 320 # <--- should match the imgsize of the model, typically 320
+            height: 320 # <--- should match the imgsize of the model, typically 320
+            path: /config/model_cache/yolov9-s-relu6-best_320_int8_edgetpu.tflite
+            labelmap_path: /config/labels-coco17.txt
 hailo8l:
   title: Hailo-8/Hailo-8L
   models:
@@ -67,27 +68,28 @@ hailo8l:
             type: hailo8l
             device: PCIe
 
-        model:
-          width: 320
-          height: 320
-          input_tensor: nhwc
-          input_pixel_format: rgb
-          input_dtype: int
-          model_type: yolo-generic
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            width: 320
+            height: 320
+            input_tensor: nhwc
+            input_pixel_format: rgb
+            input_dtype: int
+            model_type: yolo-generic
+            labelmap_path: /labelmap/coco-80.txt
 
-          # The detector automatically selects the default model based on your hardware:
-          # - For Hailo-8 hardware: YOLOv6n (default: yolov6n.hef)
-          # - For Hailo-8L hardware: YOLOv6n (default: yolov6n.hef)
-          #
-          # Optionally, you can specify a local model path to override the default.
-          # If a local path is provided and the file exists, it will be used instead of downloading.
-          # Example:
-          # path: /config/model_cache/hailo/yolov6n.hef
-          #
-          # You can also override using a custom URL:
-          # path: https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.14.0/hailo8/yolov6n.hef
-          # just make sure to give it the write configuration based on the model
+            # The detector automatically selects the default model based on your hardware:
+            # - For Hailo-8 hardware: YOLOv6n (default: yolov6n.hef)
+            # - For Hailo-8L hardware: YOLOv6n (default: yolov6n.hef)
+            #
+            # Optionally, you can specify a local model path to override the default.
+            # If a local path is provided and the file exists, it will be used instead of downloading.
+            # Example:
+            # path: /config/model_cache/hailo/yolov6n.hef
+            #
+            # You can also override using a custom URL:
+            # path: https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.14.0/hailo8/yolov6n.hef
+            # just make sure to give it the write configuration based on the model
     - key: ssd
       label: SSD MobileNet v1
       recommended: false
@@ -111,18 +113,19 @@ hailo8l:
             type: hailo8l
             device: PCIe
 
-        model:
-          width: 300
-          height: 300
-          input_tensor: nhwc
-          input_pixel_format: rgb
-          model_type: ssd
-          # Specify the local model path (if available) or URL for SSD MobileNet v1.
-          # Example with a local path:
-          # path: /config/model_cache/h8l_cache/ssd_mobilenet_v1.hef
-          #
-          # Or override using a custom URL:
-          # path: https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.14.0/hailo8l/ssd_mobilenet_v1.hef
+        models:
+          default:
+            width: 300
+            height: 300
+            input_tensor: nhwc
+            input_pixel_format: rgb
+            model_type: ssd
+            # Specify the local model path (if available) or URL for SSD MobileNet v1.
+            # Example with a local path:
+            # path: /config/model_cache/h8l_cache/ssd_mobilenet_v1.hef
+            #
+            # Or override using a custom URL:
+            # path: https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.14.0/hailo8l/ssd_mobilenet_v1.hef
 openvino:
   title: OpenVINO
   models:
@@ -171,14 +174,15 @@ openvino:
             type: openvino
             device: GPU # or NPU
 
-        model:
-          model_type: yolo-generic
-          width: 320 # <--- should match the imgsize set during model export
-          height: 320 # <--- should match the imgsize set during model export
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/yolo.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolo-generic
+            width: 320 # <--- should match the imgsize set during model export
+            height: 320 # <--- should match the imgsize set during model export
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/yolo.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
     - key: ssd
       label: SSDLite MobileNet v2
       recommended: false
@@ -202,13 +206,14 @@ openvino:
             type: openvino
             device: GPU # Or NPU
 
-        model:
-          width: 300
-          height: 300
-          input_tensor: nhwc
-          input_pixel_format: bgr
-          path: /openvino-model/ssdlite_mobilenet_v2.xml
-          labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+        models:
+          default:
+            width: 300
+            height: 300
+            input_tensor: nhwc
+            input_pixel_format: bgr
+            path: /openvino-model/ssdlite_mobilenet_v2.xml
+            labelmap_path: /openvino-model/coco_91cl_bkgr.txt
     - key: yolo-legacy
       label: YOLO (v3, v4, v7)
       recommended: false
@@ -240,14 +245,15 @@ openvino:
             type: openvino
             device: GPU # or NPU
 
-        model:
-          model_type: yolo-generic
-          width: 320 # <--- should match the imgsize set during model export
-          height: 320 # <--- should match the imgsize set during model export
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/yolo.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolo-generic
+            width: 320 # <--- should match the imgsize set during model export
+            height: 320 # <--- should match the imgsize set during model export
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/yolo.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
     - key: yolonas
       label: YOLO-NAS
       recommended: false
@@ -280,14 +286,15 @@ openvino:
             type: openvino
             device: GPU
 
-        model:
-          model_type: yolonas
-          width: 320 # <--- should match whatever was set in notebook
-          height: 320 # <--- should match whatever was set in notebook
-          input_tensor: nchw
-          input_pixel_format: bgr
-          path: /config/yolo_nas_s.onnx
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolonas
+            width: 320 # <--- should match whatever was set in notebook
+            height: 320 # <--- should match whatever was set in notebook
+            input_tensor: nchw
+            input_pixel_format: bgr
+            path: /config/yolo_nas_s.onnx
+            labelmap_path: /labelmap/coco-80.txt
     - key: yolox
       label: YOLOX
       recommended: false
@@ -308,10 +315,11 @@ openvino:
             type: openvino
             device: GPU
 
-        model:
-          model_type: yolox
-          path: /config/model_cache/yolox.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolox
+            path: /config/model_cache/yolox.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
     - key: rfdetr
       label: RF-DETR
       recommended: false
@@ -350,13 +358,14 @@ openvino:
             type: openvino
             device: GPU
 
-        model:
-          model_type: rfdetr
-          width: 320
-          height: 320
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/rfdetr.onnx # use the filename you generated above
+        models:
+          default:
+            model_type: rfdetr
+            width: 320
+            height: 320
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/rfdetr.onnx # use the filename you generated above
     - key: dfine
       label: D-FINE / DEIMv2
       recommended: false
@@ -448,14 +457,15 @@ openvino:
             type: openvino
             device: CPU
 
-        model:
-          model_type: dfine
-          width: 640
-          height: 640
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/dfine-s.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: dfine
+            width: 640
+            height: 640
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/dfine-s.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
 appleSilicon:
   title: Apple Silicon
   models:
@@ -504,14 +514,15 @@ appleSilicon:
             type: zmq
             endpoint: tcp://host.docker.internal:5555
 
-        model:
-          model_type: yolo-generic
-          width: 320 # <--- should match the imgsize set during model export
-          height: 320 # <--- should match the imgsize set during model export
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/yolo.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolo-generic
+            width: 320 # <--- should match the imgsize set during model export
+            height: 320 # <--- should match the imgsize set during model export
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/yolo.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
     - key: yolo-legacy
       label: YOLO (v3, v4, v7)
       recommended: false
@@ -543,14 +554,15 @@ appleSilicon:
             type: zmq
             endpoint: tcp://host.docker.internal:5555
 
-        model:
-          model_type: yolo-generic
-          width: 320 # <--- should match the imgsize set during model export
-          height: 320 # <--- should match the imgsize set during model export
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/yolo.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolo-generic
+            width: 320 # <--- should match the imgsize set during model export
+            height: 320 # <--- should match the imgsize set during model export
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/yolo.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
 onnx:
   title: ONNX
   models:
@@ -598,14 +610,15 @@ onnx:
           onnx:
             type: onnx
 
-        model:
-          model_type: yolo-generic
-          width: 320 # <--- should match the imgsize set during model export
-          height: 320 # <--- should match the imgsize set during model export
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/yolo.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolo-generic
+            width: 320 # <--- should match the imgsize set during model export
+            height: 320 # <--- should match the imgsize set during model export
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/yolo.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
     - key: rfdetr
       label: RF-DETR
       recommended: false
@@ -643,13 +656,14 @@ onnx:
           onnx:
             type: onnx
 
-        model:
-          model_type: rfdetr
-          width: 320
-          height: 320
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/rfdetr.onnx # use the filename you generated above
+        models:
+          default:
+            model_type: rfdetr
+            width: 320
+            height: 320
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/rfdetr.onnx # use the filename you generated above
     - key: yolonas
       label: YOLO-NAS
       recommended: false
@@ -681,14 +695,15 @@ onnx:
           onnx:
             type: onnx
 
-        model:
-          model_type: yolonas
-          width: 320 # <--- should match whatever was set in notebook
-          height: 320 # <--- should match whatever was set in notebook
-          input_pixel_format: bgr
-          input_tensor: nchw
-          path: /config/yolo_nas_s.onnx
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolonas
+            width: 320 # <--- should match whatever was set in notebook
+            height: 320 # <--- should match whatever was set in notebook
+            input_pixel_format: bgr
+            input_tensor: nchw
+            path: /config/yolo_nas_s.onnx
+            labelmap_path: /labelmap/coco-80.txt
     - key: yolox
       label: YOLOX
       recommended: false
@@ -711,14 +726,15 @@ onnx:
           onnx:
             type: onnx
 
-        model:
-          model_type: yolox
-          width: 416 # <--- should match the imgsize set during model export
-          height: 416 # <--- should match the imgsize set during model export
-          input_tensor: nchw
-          input_dtype: float_denorm
-          path: /config/model_cache/yolox_tiny.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolox
+            width: 416 # <--- should match the imgsize set during model export
+            height: 416 # <--- should match the imgsize set during model export
+            input_tensor: nchw
+            input_dtype: float_denorm
+            path: /config/model_cache/yolox_tiny.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
     - key: dfine
       label: D-FINE / DEIMv2
       recommended: false
@@ -809,14 +825,15 @@ onnx:
           onnx:
             type: onnx
 
-        model:
-          model_type: dfine
-          width: 640
-          height: 640
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/dfine_m_obj2coco.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: dfine
+            width: 640
+            height: 640
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/dfine_m_obj2coco.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
     - key: yolo-legacy
       label: YOLO (v3, v4, v7)
       recommended: false
@@ -847,14 +864,15 @@ onnx:
           onnx:
             type: onnx
 
-        model:
-          model_type: yolo-generic
-          width: 320 # <--- should match the imgsize set during model export
-          height: 320 # <--- should match the imgsize set during model export
-          input_tensor: nchw
-          input_dtype: float
-          path: /config/model_cache/yolo.onnx # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            model_type: yolo-generic
+            width: 320 # <--- should match the imgsize set during model export
+            height: 320 # <--- should match the imgsize set during model export
+            input_tensor: nchw
+            input_dtype: float
+            path: /config/model_cache/yolo.onnx # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
 cpu:
   title: CPU
   models:
@@ -928,18 +946,19 @@ memryx:
             type: memryx
             device: PCIe:0
 
-        model:
-          model_type: yolonas
-          width: 320 # (Can be set to 640 for higher resolution)
-          height: 320 # (Can be set to 640 for higher resolution)
-          input_tensor: nchw
-          input_dtype: float
-          labelmap_path: /labelmap/coco-80.txt
-          # Optional: The model is normally fetched through the runtime, so 'path' can be omitted unless you want to use a custom or local model.
-          # path: /config/yolonas.zip
-          # The .zip file must contain:
-          # ├── yolonas.dfp          (a file ending with .dfp)
-          # └── yolonas_post.onnx    (optional; only if the model includes a cropped post-processing network)
+        models:
+          default:
+            model_type: yolonas
+            width: 320 # (Can be set to 640 for higher resolution)
+            height: 320 # (Can be set to 640 for higher resolution)
+            input_tensor: nchw
+            input_dtype: float
+            labelmap_path: /labelmap/coco-80.txt
+            # Optional: The model is normally fetched through the runtime, so 'path' can be omitted unless you want to use a custom or local model.
+            # path: /config/yolonas.zip
+            # The .zip file must contain:
+            # ├── yolonas.dfp          (a file ending with .dfp)
+            # └── yolonas_post.onnx    (optional; only if the model includes a cropped post-processing network)
     - key: yolov9
       label: YOLOv9
       recommended: false
@@ -965,17 +984,18 @@ memryx:
             type: memryx
             device: PCIe:0
 
-        model:
-          model_type: yolo-generic
-          width: 320 # (Can be set to 640 for higher resolution)
-          height: 320 # (Can be set to 640 for higher resolution)
-          input_tensor: nchw
-          input_dtype: float
-          labelmap_path: /labelmap/coco-80.txt
-          # Optional: The model is normally fetched through the runtime, so 'path' can be omitted unless you want to use a custom or local model.
-          # path: /config/yolov9.zip
-          # The .zip file must contain:
-          # ├── yolov9.dfp          (a file ending with .dfp)
+        models:
+          default:
+            model_type: yolo-generic
+            width: 320 # (Can be set to 640 for higher resolution)
+            height: 320 # (Can be set to 640 for higher resolution)
+            input_tensor: nchw
+            input_dtype: float
+            labelmap_path: /labelmap/coco-80.txt
+            # Optional: The model is normally fetched through the runtime, so 'path' can be omitted unless you want to use a custom or local model.
+            # path: /config/yolov9.zip
+            # The .zip file must contain:
+            # ├── yolov9.dfp          (a file ending with .dfp)
     - key: yolox
       label: YOLOX
       recommended: false
@@ -1001,17 +1021,18 @@ memryx:
             type: memryx
             device: PCIe:0
 
-        model:
-          model_type: yolox
-          width: 640
-          height: 640
-          input_tensor: nchw
-          input_dtype: float_denorm
-          labelmap_path: /labelmap/coco-80.txt
-          # Optional: The model is normally fetched through the runtime, so 'path' can be omitted unless you want to use a custom or local model.
-          # path: /config/yolox.zip
-          # The .zip file must contain:
-          # ├── yolox.dfp          (a file ending with .dfp)
+        models:
+          default:
+            model_type: yolox
+            width: 640
+            height: 640
+            input_tensor: nchw
+            input_dtype: float_denorm
+            labelmap_path: /labelmap/coco-80.txt
+            # Optional: The model is normally fetched through the runtime, so 'path' can be omitted unless you want to use a custom or local model.
+            # path: /config/yolox.zip
+            # The .zip file must contain:
+            # ├── yolox.dfp          (a file ending with .dfp)
     - key: ssd
       label: SSDLite MobileNet v2
       recommended: false
@@ -1037,18 +1058,19 @@ memryx:
             type: memryx
             device: PCIe:0
 
-        model:
-          model_type: ssd
-          width: 320
-          height: 320
-          input_tensor: nchw
-          input_dtype: float
-          labelmap_path: /labelmap/coco-80.txt
-          # Optional: The model is normally fetched through the runtime, so 'path' can be omitted unless you want to use a custom or local model.
-          # path: /config/ssdlite_mobilenet.zip
-          # The .zip file must contain:
-          # ├── ssdlite_mobilenet.dfp          (a file ending with .dfp)
-          # └── ssdlite_mobilenet_post.onnx    (optional; only if the model includes a cropped post-processing network)
+        models:
+          default:
+            model_type: ssd
+            width: 320
+            height: 320
+            input_tensor: nchw
+            input_dtype: float
+            labelmap_path: /labelmap/coco-80.txt
+            # Optional: The model is normally fetched through the runtime, so 'path' can be omitted unless you want to use a custom or local model.
+            # path: /config/ssdlite_mobilenet.zip
+            # The .zip file must contain:
+            # ├── ssdlite_mobilenet.dfp          (a file ending with .dfp)
+            # └── ssdlite_mobilenet_post.onnx    (optional; only if the model includes a cropped post-processing network)
 tensorrt:
   title: TensorRT
   models:
@@ -1087,13 +1109,14 @@ tensorrt:
             type: tensorrt
             device: 0 #This is the default, select the first GPU
 
-        model:
-          path: /config/model_cache/tensorrt/yolov7-320.trt # use the filename you generated above
-          labelmap_path: /labelmap/coco-80.txt
-          input_tensor: nchw
-          input_pixel_format: rgb
-          width: 320 # MUST match the chosen model i.e yolov7-320 -> 320, yolov4-416 -> 416
-          height: 320 # MUST match the chosen model i.e yolov7-320 -> 320 yolov4-416 -> 416
+        models:
+          default:
+            path: /config/model_cache/tensorrt/yolov7-320.trt # use the filename you generated above
+            labelmap_path: /labelmap/coco-80.txt
+            input_tensor: nchw
+            input_pixel_format: rgb
+            width: 320 # MUST match the chosen model i.e yolov7-320 -> 320, yolov4-416 -> 416
+            height: 320 # MUST match the chosen model i.e yolov7-320 -> 320 yolov4-416 -> 416
 synaptics:
   title: Synaptics
   models:
@@ -1261,14 +1284,15 @@ axengine:
           axengine:
             type: axengine
 
-        model:
-          path: frigate-yolov9-tiny
-          model_type: yolo-generic
-          width: 320
-          height: 320
-          input_dtype: int
-          input_pixel_format: bgr
-          labelmap_path: /labelmap/coco-80.txt
+        models:
+          default:
+            path: frigate-yolov9-tiny
+            model_type: yolo-generic
+            width: 320
+            height: 320
+            input_dtype: int
+            input_pixel_format: bgr
+            labelmap_path: /labelmap/coco-80.txt
 degirumAiServer:
   title: DeGirum AI Server
   models:

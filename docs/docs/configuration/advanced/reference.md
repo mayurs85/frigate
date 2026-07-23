@@ -157,44 +157,51 @@ auth:
       - front_door
       - back_yard
 
-# Optional: model modifications
+# Optional: named object detection models (default: a single model named "default")
+# Each entry defines a model; cameras choose which model to use with detect.model.
+# Detectors that support multiple models (openvino, onnx, tensorrt, cpu, rknn) run
+# one instance per model in use. Detectors that only support a single model
+# (edgetpu, hailo8l, memryx, and others) are assigned to models round robin, so at
+# least as many of those detectors as models are required when no multi-model
+# capable detector is configured.
 # NOTE: The default values are for the EdgeTPU detector.
 # Other detectors will require the model config to be set.
-model:
-  # Required: path to the model. Frigate+ models use plus://<model_id> (default: automatic based on detector)
-  path: /edgetpu_model.tflite
-  # Required: path to the labelmap (default: shown below)
-  labelmap_path: /labelmap.txt
-  # Required: Object detection model input width (default: shown below)
-  width: 320
-  # Required: Object detection model input height (default: shown below)
-  height: 320
-  # Required: Object detection model input colorspace
-  # Valid values are rgb, bgr, or yuv. (default: shown below)
-  input_pixel_format: rgb
-  # Required: Object detection model input tensor format
-  # Valid values are nhwc, nchw, hwnc, or hwcn (default: shown below)
-  input_tensor: nhwc
-  # Optional: Data type of the model input tensor
-  # Valid values are float, float_denorm, or int (default: shown below)
-  input_dtype: int
-  # Required: Object detection model architecture, used by detectors that support more
-  # than one model type (openvino, onnx, rknn, memryx, axengine, synaptics, and others)
-  # Valid values are ssd, yolox, yolonas, yolo-generic, rfdetr, dfine (default: shown below)
-  model_type: ssd
-  # Required: Label name modifications. These are merged into the standard labelmap.
-  labelmap:
-    2: vehicle
-  # Optional: Map of object labels to their attribute labels (default: depends on model)
-  attributes_map:
-    person:
-      - amazon
-      - face
-    car:
-      - amazon
-      - fedex
-      - license_plate
-      - ups
+models:
+  default:
+    # Required: path to the model. Frigate+ models use plus://<model_id> (default: automatic based on detector)
+    path: /edgetpu_model.tflite
+    # Required: path to the labelmap (default: shown below)
+    labelmap_path: /labelmap.txt
+    # Required: Object detection model input width (default: shown below)
+    width: 320
+    # Required: Object detection model input height (default: shown below)
+    height: 320
+    # Required: Object detection model input colorspace
+    # Valid values are rgb, bgr, or yuv. (default: shown below)
+    input_pixel_format: rgb
+    # Required: Object detection model input tensor format
+    # Valid values are nhwc, nchw, hwnc, or hwcn (default: shown below)
+    input_tensor: nhwc
+    # Optional: Data type of the model input tensor
+    # Valid values are float, float_denorm, or int (default: shown below)
+    input_dtype: int
+    # Required: Object detection model architecture, used by detectors that support more
+    # than one model type (openvino, onnx, rknn, memryx, axengine, synaptics, and others)
+    # Valid values are ssd, yolox, yolonas, yolo-generic, rfdetr, dfine (default: shown below)
+    model_type: ssd
+    # Required: Label name modifications. These are merged into the standard labelmap.
+    labelmap:
+      2: vehicle
+    # Optional: Map of object labels to their attribute labels (default: depends on model)
+    attributes_map:
+      person:
+        - amazon
+        - face
+      car:
+        - amazon
+        - fedex
+        - license_plate
+        - ups
 
 # Optional: Audio Events Configuration
 # NOTE: Can be overridden at the camera level
@@ -302,6 +309,9 @@ ffmpeg:
 detect:
   # Optional: enables detection for the camera (default: shown below)
   enabled: False
+  # Optional: name of the model (key under models) used by this camera
+  # (default: the only defined model, or the model named "default")
+  model: default
   # Optional: width of the frame for the input with the detect role (default: use native stream resolution)
   width: 1280
   # Optional: height of the frame for the input with the detect role (default: use native stream resolution)

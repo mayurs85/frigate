@@ -72,9 +72,10 @@ class LicensePlateProcessingMixin:
         # Object config
         self.lp_objects: list[str] = []
 
-        for obj, attributes in self.config.model.attributes_map.items():
-            if "license_plate" in attributes:
-                self.lp_objects.append(obj)
+        for model in self.config.models.values():
+            for obj, attributes in model.attributes_map.items():
+                if "license_plate" in attributes and obj not in self.lp_objects:
+                    self.lp_objects.append(obj)
 
         # Detection specific parameters
         self.min_size = 8

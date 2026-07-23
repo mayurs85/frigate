@@ -70,7 +70,17 @@ export function extractSectionSchema(
     // For global level, get from root properties
     if (schemaObj.properties) {
       const props = schemaObj.properties;
-      const sectionProp = props[sectionPath];
+      let sectionProp = props[sectionPath];
+
+      // the model editor edits a single entry of the `models` map, so
+      // resolve the map value schema since there is no root `model` property
+      if (!sectionProp && sectionPath === "model") {
+        const modelsProp = props["models"] as SchemaWithDefinitions | undefined;
+        const additional = modelsProp?.additionalProperties;
+        if (additional && typeof additional === "object") {
+          sectionProp = additional as RJSFSchema;
+        }
+      }
 
       if (sectionProp && typeof sectionProp === "object") {
         if ("$ref" in sectionProp && typeof sectionProp.$ref === "string") {

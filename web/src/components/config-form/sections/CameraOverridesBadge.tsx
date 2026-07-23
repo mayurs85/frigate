@@ -74,6 +74,7 @@ const SECTIONS_WITHOUT_OVERRIDE_BADGE = new Set([
   "birdseye",
   "detectors",
   "model",
+  "models",
 ]);
 
 type CameraEntryProps = {

@@ -29,7 +29,7 @@ class CameraMaintainer(threading.Thread):
     def __init__(
         self,
         config: FrigateConfig,
-        detection_queue: Queue,
+        detection_queues: dict[str, Queue],
         detected_frames_queue: Queue,
         camera_metrics: DictProxy,
         ptz_metrics: dict[str, PTZMetrics],
@@ -38,7 +38,7 @@ class CameraMaintainer(threading.Thread):
     ):
         super().__init__(name="camera_processor")
         self.config = config
-        self.detection_queue = detection_queue
+        self.detection_queues = detection_queues
         self.detected_frames_queue = detected_frames_queue
         self.stop_event = stop_event
         self.camera_metrics = camera_metrics
@@ -79,10 +79,11 @@ class CameraMaintainer(threading.Thread):
         # create or update region grids for each camera
         for camera in self.config.cameras.values():
             assert camera.name is not None
+            camera_model = self.config.models[camera.detect.model]
             self.region_grids[camera.name] = get_camera_regions_grid(
                 camera.name,
                 camera.detect,
-                max(self.config.model.width, self.config.model.height),
+                max(camera_model.width, camera_model.height),
             )
 
     def __calculate_shm_frame_count(self) -> int:
@@ -115,6 +116,8 @@ class CameraMaintainer(threading.Thread):
 
         camera_stop_event = self.__ensure_camera_stop_event(name)
 
+        camera_model = self.config.models[config.detect.model]
+
         if runtime:
             self.camera_metrics[name] = CameraMetrics(self.metrics_manager)
             self.ptz_metrics[name] = PTZMetrics(
@@ -123,32 +126,24 @@ class CameraMaintainer(threading.Thread):
             self.region_grids[name] = get_camera_regions_grid(
                 name,
                 config.detect,
-                max(self.config.model.width, self.config.model.height),
+                max(camera_model.width, camera_model.height),
             )
 
             try:
-                largest_frame = max(
-                    [
-                        det.model.height * det.model.width * 3
-                        if det.model is not None
-                        else 320
-                        for det in self.config.detectors.values()
-                    ]
-                )
                 UntrackedSharedMemory(name=f"out-{name}", create=True, size=20 * 6 * 4)
                 UntrackedSharedMemory(
                     name=name,
                     create=True,
-                    size=largest_frame,
+                    size=camera_model.height * camera_model.width * 3,
                 )
             except FileExistsError:
                 pass
 
         camera_process = CameraTracker(
             config,
-            self.config.model,
-            self.config.model.merged_labelmap,
-            self.detection_queue,
+            camera_model,
+            camera_model.merged_labelmap,
+            self.detection_queues[config.detect.model],
             self.detected_frames_queue,
             self.camera_metrics[name],
             self.ptz_metrics[name],

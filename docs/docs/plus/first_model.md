@@ -38,8 +38,9 @@ Navigate to <NavPath path="Settings > System > Detectors and model" />. In the *
 ```yaml
 detectors: ...
 
-model:
-  path: plus://<your_model_id>
+models:
+  default:
+    path: plus://<your_model_id>
 ```
 
 :::tip

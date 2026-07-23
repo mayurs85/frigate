@@ -372,31 +372,40 @@ def config(request: Request):
         config["go2rtc"]["streams"][stream_name] = cleaned
 
     config["plus"] = {"enabled": request.app.frigate_config.plus_api.is_active()}
-    config["model"]["colormap"] = config_obj.model.colormap
-    config["model"]["all_attributes"] = config_obj.model.all_attributes
-    config["model"]["non_logo_attributes"] = config_obj.model.non_logo_attributes
 
-    # Add model plus data if plus is enabled
-    if config["plus"]["enabled"]:
-        model_path = config.get("model", {}).get("path")
-        if model_path:
-            model_json_path = FilePath(model_path).with_suffix(".json")
-            try:
-                with open(model_json_path) as f:
-                    model_plus_data = json.load(f)
-                config["model"]["plus"] = model_plus_data
-            except FileNotFoundError:
-                config["model"]["plus"] = None
-            except json.JSONDecodeError:
-                config["model"]["plus"] = None
-        else:
-            config["model"]["plus"] = None
+    for model_key, model in config_obj.models.items():
+        model_dict = config["models"][model_key]
+        model_dict["colormap"] = model.colormap
+        model_dict["all_attributes"] = model.all_attributes
+        model_dict["non_logo_attributes"] = model.non_logo_attributes
 
-    # use merged labelamp
-    for detector_config in config["detectors"].values():
-        detector_config["model"]["labelmap"] = (
-            request.app.frigate_config.model.merged_labelmap
-        )
+        # Add model plus data if plus is enabled
+        if config["plus"]["enabled"]:
+            model_plus_data = None
+
+            if model.path:
+                model_json_path = FilePath(model.path).with_suffix(".json")
+                try:
+                    with open(model_json_path) as f:
+                        model_plus_data = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    model_plus_data = None
+
+            model_dict["plus"] = model_plus_data
+
+    # legacy single-model block kept for frontend compatibility, remove
+    # once the UI is fully multi-model aware
+    default_model_key = (
+        "default" if "default" in config_obj.models else next(iter(config_obj.models))
+    )
+    config["model"] = config["models"][default_model_key]
+
+    # use each detector's assigned merged labelmap
+    for key, detector_config in config["detectors"].items():
+        if config_obj.detectors[key].model:
+            detector_config["model"]["labelmap"] = config_obj.detectors[
+                key
+            ].model.merged_labelmap
 
     return JSONResponse(content=config)
 
@@ -1323,8 +1332,11 @@ def plusModels(request: Request, filterByCurrentModelDetector: bool = False):
 
     modelList = models["list"]
 
-    # current model type
-    modelType = request.app.frigate_config.model.model_type
+    # current model type, based on the default model until the UI is
+    # fully multi-model aware
+    config_models = request.app.frigate_config.models
+    default_model = config_models.get("default") or next(iter(config_models.values()))
+    modelType = default_model.model_type
 
     # current detectorType for comparing to supportedDetectors
     detectorType = list(request.app.frigate_config.detectors.values())[0].type

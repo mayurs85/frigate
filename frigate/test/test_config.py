@@ -86,7 +86,7 @@ class TestConfig(unittest.TestCase):
                 },
             },
             # needs to be a file that will exist, doesn't matter what
-            "model": {"path": "/etc/hosts", "width": 512},
+            "models": {"default": {"path": "/etc/hosts", "width": 512}},
         }
 
         frigate_config = FrigateConfig(**(deep_merge(config, self.minimal)))
@@ -103,7 +103,7 @@ class TestConfig(unittest.TestCase):
         assert frigate_config.detectors["edgetpu"].device is None
         assert frigate_config.detectors["openvino"].device is None
 
-        assert frigate_config.model.path == "/etc/hosts"
+        assert frigate_config.models["default"].path == "/etc/hosts"
         assert frigate_config.detectors["cpu"].model.path == "/cpu_model.tflite"
         assert frigate_config.detectors["edgetpu"].model.path == "/edgetpu_model.tflite"
         assert frigate_config.detectors["openvino"].model.path == "/etc/hosts"
@@ -956,7 +956,7 @@ class TestConfig(unittest.TestCase):
     def test_merge_labelmap(self):
         config = {
             "mqtt": {"host": "mqtt"},
-            "model": {"labelmap": {7: "truck"}},
+            "models": {"default": {"labelmap": {7: "truck"}}},
             "cameras": {
                 "back": {
                     "ffmpeg": {
@@ -977,7 +977,7 @@ class TestConfig(unittest.TestCase):
         }
 
         frigate_config = FrigateConfig(**config)
-        assert frigate_config.model.merged_labelmap[7] == "truck"
+        assert frigate_config.models["default"].merged_labelmap[7] == "truck"
 
     def test_default_labelmap_empty(self):
         config = {
@@ -1002,12 +1002,12 @@ class TestConfig(unittest.TestCase):
         }
 
         frigate_config = FrigateConfig(**config)
-        assert frigate_config.model.merged_labelmap[0] == "person"
+        assert frigate_config.models["default"].merged_labelmap[0] == "person"
 
     def test_default_labelmap(self):
         config = {
             "mqtt": {"host": "mqtt"},
-            "model": {"width": 320, "height": 320},
+            "models": {"default": {"width": 320, "height": 320}},
             "cameras": {
                 "back": {
                     "ffmpeg": {
@@ -1028,7 +1028,7 @@ class TestConfig(unittest.TestCase):
         }
 
         frigate_config = FrigateConfig(**config)
-        assert frigate_config.model.merged_labelmap[0] == "person"
+        assert frigate_config.models["default"].merged_labelmap[0] == "person"
 
     def test_plus_labelmap(self):
         with open(os.path.join(MODEL_CACHE_DIR, "test"), "w") as f:
@@ -1039,7 +1039,7 @@ class TestConfig(unittest.TestCase):
         config = {
             "mqtt": {"host": "mqtt"},
             "detectors": {"cpu": {"type": "cpu"}},
-            "model": {"path": "plus://test"},
+            "models": {"default": {"path": "plus://test"}},
             "cameras": {
                 "back": {
                     "ffmpeg": {
@@ -1060,7 +1060,7 @@ class TestConfig(unittest.TestCase):
         }
 
         frigate_config = FrigateConfig(**config)
-        assert frigate_config.model.merged_labelmap[0] == "amazon"
+        assert frigate_config.models["default"].merged_labelmap[0] == "amazon"
 
     def test_fails_on_invalid_role(self):
         config = {
@@ -1763,6 +1763,178 @@ class TestAttributeFilterDefaults(unittest.TestCase):
         config = self._build_config({"face": {"min_score": 0.3}})
         face_filter = config.objects.filters["face"]
         self.assertEqual(face_filter.min_score, 0.3)
+
+
+class TestMultiModelConfig(unittest.TestCase):
+    """Tests for named models and detector instance assignment."""
+
+    def setUp(self):
+        self.base = {
+            "mqtt": {"host": "mqtt"},
+            "models": {
+                "indoor": {"width": 320, "height": 320},
+                "outdoor": {"width": 640, "height": 640},
+            },
+            "cameras": {
+                "living_room": self._camera("indoor"),
+                "driveway": self._camera("outdoor"),
+            },
+        }
+
+    def _camera(self, model=None):
+        camera = {
+            "ffmpeg": {
+                "inputs": [{"path": "rtsp://10.0.0.1:554/video", "roles": ["detect"]}]
+            },
+            "detect": {"height": 1080, "width": 1920, "fps": 5},
+        }
+
+        if model:
+            camera["detect"]["model"] = model
+
+        return camera
+
+    def test_single_model_resolves_implicitly(self):
+        config = FrigateConfig(
+            mqtt={"host": "mqtt"},
+            models={"custom": {"width": 320, "height": 320}},
+            cameras={"back": self._camera()},
+        )
+        assert config.cameras["back"].detect.model == "custom"
+
+    def test_multiple_models_resolve_to_default(self):
+        config = FrigateConfig(
+            mqtt={"host": "mqtt"},
+            models={
+                "default": {"width": 320, "height": 320},
+                "outdoor": {"width": 640, "height": 640},
+            },
+            cameras={"back": self._camera()},
+        )
+        assert config.cameras["back"].detect.model == "default"
+
+    def test_multiple_models_without_default_requires_selection(self):
+        config = self.base.copy()
+        config["cameras"] = {"back": self._camera()}
+        self.assertRaises(ValidationError, lambda: FrigateConfig(**config))
+
+    def test_camera_references_missing_model(self):
+        config = self.base.copy()
+        config["cameras"] = {"back": self._camera("thermal")}
+        self.assertRaises(ValidationError, lambda: FrigateConfig(**config))
+
+    def test_global_detect_model_inherited_and_overridden(self):
+        config = self.base.copy()
+        config["detect"] = {"model": "indoor"}
+        config["cameras"] = {
+            "living_room": self._camera(),
+            "driveway": self._camera("outdoor"),
+        }
+        frigate_config = FrigateConfig(**config)
+        assert frigate_config.cameras["living_room"].detect.model == "indoor"
+        assert frigate_config.cameras["driveway"].detect.model == "outdoor"
+
+    def test_invalid_model_name(self):
+        config = self.base.copy()
+        config["models"] = {"bad name!": {"width": 320, "height": 320}}
+        self.assertRaises(ValidationError, lambda: FrigateConfig(**config))
+
+    def test_multi_model_detector_expands_instances(self):
+        config = self.base.copy()
+        config["detectors"] = {
+            "ov0": {"type": "openvino", "device": "GPU"},
+            "ov1": {"type": "openvino", "device": "GPU.1"},
+        }
+        frigate_config = FrigateConfig(**config)
+        assert sorted(frigate_config.detector_instances.keys()) == [
+            "ov0_indoor",
+            "ov0_outdoor",
+            "ov1_indoor",
+            "ov1_outdoor",
+        ]
+        assert frigate_config.detector_instances["ov0_indoor"].model_key == "indoor"
+        assert frigate_config.detector_instances["ov0_indoor"].model.width == 320
+        assert frigate_config.detector_instances["ov0_outdoor"].model.width == 640
+
+    def test_multi_model_detector_single_model_keeps_name(self):
+        config = self.base.copy()
+        config["models"] = {"default": {"width": 320, "height": 320}}
+        config["cameras"] = {"back": self._camera()}
+        config["detectors"] = {"ov": {"type": "openvino", "device": "GPU"}}
+        frigate_config = FrigateConfig(**config)
+        assert list(frigate_config.detector_instances.keys()) == ["ov"]
+        assert frigate_config.detector_instances["ov"].model_key == "default"
+
+    def test_single_model_detectors_round_robin(self):
+        config = self.base.copy()
+        config["detectors"] = {
+            "coral0": {"type": "edgetpu", "device": "usb:0"},
+            "coral1": {"type": "edgetpu", "device": "usb:1"},
+            "coral2": {"type": "edgetpu", "device": "usb:2"},
+        }
+        frigate_config = FrigateConfig(**config)
+        assignments = {
+            key: instance.model_key
+            for key, instance in frigate_config.detector_instances.items()
+        }
+        assert assignments == {
+            "coral0": "indoor",
+            "coral1": "outdoor",
+            "coral2": "indoor",
+        }
+
+    def test_single_model_detectors_insufficient_coverage(self):
+        config = self.base.copy()
+        config["detectors"] = {"coral": {"type": "edgetpu", "device": "usb"}}
+        self.assertRaises(ValidationError, lambda: FrigateConfig(**config))
+
+    def test_single_model_detector_with_multi_model_detector(self):
+        config = self.base.copy()
+        config["detectors"] = {
+            "coral": {"type": "edgetpu", "device": "usb"},
+            "ov": {"type": "openvino", "device": "GPU"},
+        }
+        frigate_config = FrigateConfig(**config)
+        assert frigate_config.detector_instances["coral"].model_key == "indoor"
+        assert frigate_config.detector_instances["ov_indoor"].model_key == "indoor"
+        assert frigate_config.detector_instances["ov_outdoor"].model_key == "outdoor"
+
+    def test_unused_model_gets_no_instances(self):
+        config = self.base.copy()
+        config["models"] = {
+            **config["models"],
+            "thermal": {"width": 320, "height": 320},
+        }
+        frigate_config = FrigateConfig(**config)
+        model_keys = {
+            instance.model_key
+            for instance in frigate_config.detector_instances.values()
+        }
+        assert "thermal" not in model_keys
+
+    def test_model_path_ignored_when_detector_runs_multiple_models(self):
+        config = self.base.copy()
+        config["detectors"] = {
+            "cpu": {"type": "cpu", "model_path": "/custom_model.tflite"}
+        }
+        frigate_config = FrigateConfig(**config)
+        assert (
+            frigate_config.detector_instances["cpu_indoor"].model.path
+            == "/cpu_model.tflite"
+        )
+
+    def test_model_path_applied_when_detector_runs_one_model(self):
+        config = self.base.copy()
+        config["models"] = {"default": {"width": 320, "height": 320}}
+        config["cameras"] = {"back": self._camera()}
+        config["detectors"] = {
+            "cpu": {"type": "cpu", "model_path": "/custom_model.tflite"}
+        }
+        frigate_config = FrigateConfig(**config)
+        assert (
+            frigate_config.detector_instances["cpu"].model.path
+            == "/custom_model.tflite"
+        )
 
 
 if __name__ == "__main__":

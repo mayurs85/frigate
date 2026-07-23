@@ -250,6 +250,11 @@ class BaseDetectorConfig(BaseModel):
         title="Detector specific model path",
         description="File path to the detector model binary if required by the chosen detector.",
     )
+    model_key: str | None = Field(
+        default=None,
+        title="Assigned model name",
+        description="Name of the model (key under `models`) this detector instance serves. Set automatically at runtime, users should not set this.",
+    )
     model_config = ConfigDict(
         extra="allow", arbitrary_types_allowed=True, protected_namespaces=()
     )

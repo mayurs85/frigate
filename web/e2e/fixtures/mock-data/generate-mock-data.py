@@ -102,11 +102,17 @@ def generate_config():
         snapshot = config.model_dump()
 
     # Runtime-computed fields not in the Pydantic dump
-    all_attrs = set()
-    for attrs in snapshot.get("model", {}).get("attributes_map", {}).values():
-        all_attrs.update(attrs)
-    snapshot["model"]["all_attributes"] = sorted(all_attrs)
-    snapshot["model"]["colormap"] = {}
+    for model_dict in snapshot.get("models", {}).values():
+        all_attrs = set()
+        for attrs in model_dict.get("attributes_map", {}).values():
+            all_attrs.update(attrs)
+        model_dict["all_attributes"] = sorted(all_attrs)
+        model_dict["colormap"] = {}
+
+    # legacy single-model block mirrors the default model, matching /api/config
+    models = snapshot.get("models", {})
+    default_key = "default" if "default" in models else next(iter(models))
+    snapshot["model"] = models[default_key]
 
     return snapshot
 

@@ -178,7 +178,7 @@ class CameraActivityManager:
             return
 
         for label in camera_config.objects.track:
-            if label in self.config.model.non_logo_attributes:
+            if label in self.config.model_for_camera(camera).non_logo_attributes:
                 continue
 
             new_count = all_objects[label]

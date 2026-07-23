@@ -20,7 +20,7 @@ from frigate.util.services import get_video_properties
 
 logger = logging.getLogger(__name__)
 
-CURRENT_CONFIG_VERSION = "0.18-0"
+CURRENT_CONFIG_VERSION = "0.19-0"
 DEFAULT_CONFIG_FILE = os.path.join(CONFIG_DIR, "config.yml")
 
 
@@ -99,6 +99,7 @@ def migrate_frigate_config(config_file: str):
         new_config = migrate_014(config)
         with open(config_file, "w") as f:
             yaml.dump(new_config, f)
+        config = new_config
         previous_version = "0.14"
 
         logger.info("Migrating export file names...")
@@ -117,6 +118,7 @@ def migrate_frigate_config(config_file: str):
         new_config = migrate_015_0(config)
         with open(config_file, "w") as f:
             yaml.dump(new_config, f)
+        config = new_config
         previous_version = "0.15-0"
 
     if previous_version < "0.15-1":
@@ -124,6 +126,7 @@ def migrate_frigate_config(config_file: str):
         new_config = migrate_015_1(config)
         with open(config_file, "w") as f:
             yaml.dump(new_config, f)
+        config = new_config
         previous_version = "0.15-1"
 
     if previous_version < "0.16-0":
@@ -131,6 +134,7 @@ def migrate_frigate_config(config_file: str):
         new_config = migrate_016_0(config)
         with open(config_file, "w") as f:
             yaml.dump(new_config, f)
+        config = new_config
         previous_version = "0.16-0"
 
     if previous_version < "0.17-0":
@@ -138,6 +142,7 @@ def migrate_frigate_config(config_file: str):
         new_config = migrate_017_0(config)
         with open(config_file, "w") as f:
             yaml.dump(new_config, f)
+        config = new_config
         previous_version = "0.17-0"
 
     if previous_version < "0.18-0":
@@ -145,7 +150,16 @@ def migrate_frigate_config(config_file: str):
         new_config = migrate_018_0(config)
         with open(config_file, "w") as f:
             yaml.dump(new_config, f)
+        config = new_config
         previous_version = "0.18-0"
+
+    if previous_version < "0.19-0":
+        logger.info(f"Migrating frigate config from {previous_version} to 0.19-0...")
+        new_config = migrate_019_0(config)
+        with open(config_file, "w") as f:
+            yaml.dump(new_config, f)
+        config = new_config
+        previous_version = "0.19-0"
 
     logger.info("Finished frigate config migration...")
 
@@ -655,6 +669,20 @@ def migrate_018_0(config: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]
         del new_config["ui"]
 
     new_config["version"] = "0.18-0"
+    return new_config
+
+
+def migrate_019_0(config: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Handle migrating frigate config to 0.19-0"""
+    new_config = config.copy()
+
+    # Migrate the single model config to named models
+    model = new_config.pop("model", None)
+
+    if model is not None and "models" not in new_config:
+        new_config["models"] = {"default": model}
+
+    new_config["version"] = "0.19-0"
     return new_config
 
 

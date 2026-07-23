@@ -231,8 +231,12 @@ class ReviewDescriptionProcessor(PostProcessorApi):
                     final_data,
                     thumbs,
                     camera_config.review.genai,
-                    list(self.config.model.merged_labelmap.values()),
-                    self.config.model.all_attributes,
+                    list(
+                        self.config.model_for_camera(
+                            camera_config.name
+                        ).merged_labelmap.values()
+                    ),
+                    self.config.model_for_camera(camera_config.name).all_attributes,
                 ),
             ).start()
 

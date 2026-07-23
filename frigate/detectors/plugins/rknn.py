@@ -47,6 +47,7 @@ class RknnDetectorConfig(BaseDetectorConfig):
 
 class Rknn(DetectionApi):
     type_key = DETECTOR_KEY
+    supports_multiple_models = True
 
     def __init__(self, config: RknnDetectorConfig):
         super().__init__(config)

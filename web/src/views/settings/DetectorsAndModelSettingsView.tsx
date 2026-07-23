@@ -115,8 +115,10 @@ const STATUS_BAR_KEY = "detectors_and_model";
 const EMPTY_PENDING: Record<string, ConfigSectionData> = {};
 
 const deriveInitialState = (config: FrigateConfig): PageState => {
-  const plusModelId = config.model?.plus?.id;
-  const modelPath = config.model?.path;
+  // this view edits the default model; other named models are untouched
+  const defaultModel = config.models?.default ?? config.model;
+  const plusModelId = defaultModel?.plus?.id;
+  const modelPath = defaultModel?.path;
   const plusEnabled = Boolean(config.plus?.enabled);
 
   // The reliable signal that a Plus model is currently active is the
@@ -136,10 +138,8 @@ const deriveInitialState = (config: FrigateConfig): PageState => {
     modelTab = "custom";
   }
 
-  const { plus: _plus, ...modelWithoutPlus } = (config.model ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const { plus: _plus, ...modelWithoutPlus } = (defaultModel ??
+    {}) as unknown as Record<string, unknown>;
   // If a Plus model is active, the resolved `model.path` is auto-derived from
   // `plus.id` — drop it so the Custom tab starts clean and doesn't silently
   // re-save the same Plus model when the user thinks they switched modes.
@@ -476,7 +476,7 @@ export default function DetectorsAndModelSettingsView({
         try {
           await axios.put("config/set", {
             requires_restart: 0,
-            config_data: { detectors: null, model: null },
+            config_data: { detectors: null, models: { default: null } },
           });
           preCleared = true;
         } catch {
@@ -488,7 +488,7 @@ export default function DetectorsAndModelSettingsView({
         requires_restart: 0,
         config_data: {
           detectors: sanitizedDetectors,
-          model: modelPayload,
+          models: { default: modelPayload },
         },
       });
 
@@ -541,7 +541,7 @@ export default function DetectorsAndModelSettingsView({
                 snapshot.detectors,
                 detectorHiddenFields,
               ),
-              model: restoreModel,
+              models: { default: restoreModel },
             },
           });
         } catch {

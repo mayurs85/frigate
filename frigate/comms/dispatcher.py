@@ -156,10 +156,11 @@ class Dispatcher:
             if camera not in self.config.cameras:
                 return None
 
+            camera_model = self.config.model_for_camera(camera)
             grid = get_camera_regions_grid(
                 camera,
                 self.config.cameras[camera].detect,
-                max(self.config.model.width, self.config.model.height),
+                max(camera_model.width, camera_model.height),
             )
             return grid
 

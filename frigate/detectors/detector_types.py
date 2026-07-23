@@ -29,6 +29,12 @@ for _, name, _ in _included_modules:
 api_types = {det.type_key: det for det in DetectionApi.__subclasses__()}
 
 
+def detector_supports_multiple_models(type_key: str) -> bool:
+    """Return whether the given detector type can run multiple model instances."""
+    detector = api_types.get(type_key)
+    return bool(detector and getattr(detector, "supports_multiple_models", False))
+
+
 class StrEnum(str, Enum):
     pass
 

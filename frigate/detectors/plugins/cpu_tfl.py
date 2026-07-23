@@ -37,6 +37,7 @@ class CpuDetectorConfig(BaseDetectorConfig):
 
 class CpuTfl(DetectionApi):
     type_key = DETECTOR_KEY
+    supports_multiple_models = True
 
     def __init__(self, detector_config: CpuDetectorConfig):
         # Suppress TFLite delegate creation messages that bypass Python logging

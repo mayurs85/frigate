@@ -91,6 +91,41 @@ The best detection accuracy comes from a model trained on images that look like 
 
 :::
 
+### Running multiple models
+
+Models are defined as named entries under `models`, and each camera selects the model it uses with `detect.model`. This makes it possible to run different models for different groups of cameras, for example a dedicated model for indoor cameras, outdoor cameras, or thermal cameras.
+
+```yaml
+detectors:
+  ov:
+    type: openvino
+    device: GPU
+
+models:
+  indoor:
+    path: /config/model_cache/indoor-model.xml
+    model_type: yolo-generic
+    width: 320
+    height: 320
+  outdoor:
+    path: plus://<your_model_id>
+
+cameras:
+  living_room:
+    detect:
+      model: indoor
+  driveway:
+    detect:
+      model: outdoor
+```
+
+When only one model is defined, all cameras use it automatically. With multiple models, cameras use the model named `default` unless `detect.model` selects another one; `detect.model` can also be set globally and overridden per camera.
+
+How detectors handle multiple models depends on the hardware:
+
+- **Detectors that support multiple models** (`openvino`, `onnx`, `tensorrt`, `cpu`, `rknn`): a single detector entry is automatically expanded into one instance per model in use. For example, detector `ov` with models `indoor` and `outdoor` runs as `ov_indoor` and `ov_outdoor`, and each instance appears separately in the System Metrics page. Keep in mind that each instance loads its own copy of the model, which increases GPU memory usage.
+- **Detectors that only support a single model** (`edgetpu`, `hailo8l`, `memryx`, and other single-session hardware): each detector entry serves exactly one model. Detector entries are assigned to models round robin, so running two models on Coral hardware requires two Corals. If these are the only detectors configured and there are fewer of them than models in use, Frigate will fail to start with an error explaining the options.
+
 # Officially Supported Detectors
 
 Frigate provides a number of builtin detector types. By default, Frigate will use a single CPU detector. Other detectors may require additional configuration as described below. When using multiple detectors they will run in dedicated processes, but pull from a common queue of detection requests from across all cameras.
@@ -789,11 +824,12 @@ You can set it to:
 - A path to some model.json.
 
 ```yaml
-model:
-  path: ./mobilenet_v2_ssd_coco--300x300_quant_n2x_orca1_1 # directory to model .json and file
-  width: 300 # width is in the model name as the first number in the "int"x"int" section
-  height: 300 # height is in the model name as the second number in the "int"x"int" section
-  input_pixel_format: rgb/bgr # look at the model.json to figure out which to put here
+models:
+  default:
+    path: ./mobilenet_v2_ssd_coco--300x300_quant_n2x_orca1_1 # directory to model .json and file
+    width: 300 # width is in the model name as the first number in the "int"x"int" section
+    height: 300 # height is in the model name as the second number in the "int"x"int" section
+    input_pixel_format: rgb/bgr # look at the model.json to figure out which to put here
 ```
 
 #### Local Inference
@@ -809,11 +845,12 @@ It is also possible to eliminate the need for an AI server and run the hardware 
 Once `degirum_detector` is setup, you can choose a model through 'model' section in the `config.yml` file.
 
 ```yaml
-model:
-  path: mobilenet_v2_ssd_coco--300x300_quant_n2x_orca1_1
-  width: 300 # width is in the model name as the first number in the "int"x"int" section
-  height: 300 # height is in the model name as the second number in the "int"x"int" section
-  input_pixel_format: rgb/bgr # look at the model.json to figure out which to put here
+models:
+  default:
+    path: mobilenet_v2_ssd_coco--300x300_quant_n2x_orca1_1
+    width: 300 # width is in the model name as the first number in the "int"x"int" section
+    height: 300 # height is in the model name as the second number in the "int"x"int" section
+    input_pixel_format: rgb/bgr # look at the model.json to figure out which to put here
 ```
 
 #### AI Hub Cloud Inference
@@ -829,11 +866,12 @@ If you do not possess whatever hardware you want to run, there's also the option
 Once `degirum_detector` is setup, you can choose a model through 'model' section in the `config.yml` file.
 
 ```yaml
-model:
-  path: mobilenet_v2_ssd_coco--300x300_quant_n2x_orca1_1
-  width: 300 # width is in the model name as the first number in the "int"x"int" section
-  height: 300 # height is in the model name as the second number in the "int"x"int" section
-  input_pixel_format: rgb/bgr # look at the model.json to figure out which to put here
+models:
+  default:
+    path: mobilenet_v2_ssd_coco--300x300_quant_n2x_orca1_1
+    width: 300 # width is in the model name as the first number in the "int"x"int" section
+    height: 300 # height is in the model name as the second number in the "int"x"int" section
+    input_pixel_format: rgb/bgr # look at the model.json to figure out which to put here
 ```
 
 ## AXERA

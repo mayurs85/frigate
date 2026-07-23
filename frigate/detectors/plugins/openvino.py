@@ -36,6 +36,7 @@ class OvDetectorConfig(BaseDetectorConfig):
 
 class OvDetector(DetectionApi):
     type_key = DETECTOR_KEY
+    supports_multiple_models = True
     supported_models = [
         ModelTypeEnum.dfine,
         ModelTypeEnum.rfdetr,

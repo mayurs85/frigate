@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 class DetectionApi(ABC):
     type_key: str
     supported_models: list[ModelTypeEnum]
+    # whether this detector type can run multiple model instances concurrently
+    # on the same hardware (one detector config entry can be expanded to an
+    # instance per model); single-model detectors serve exactly one model each
+    supports_multiple_models: bool = False
 
     @abstractmethod
     def __init__(self, detector_config: BaseDetectorConfig):

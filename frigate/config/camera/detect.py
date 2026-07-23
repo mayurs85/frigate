@@ -50,6 +50,11 @@ class DetectConfig(FrigateBaseModel):
         title="Enable object detection",
         description="Enable or disable object detection for all cameras; can be overridden per-camera.",
     )
+    model: str | None = Field(
+        default=None,
+        title="Detection model name",
+        description="Name of the model (key under `models`) used by this camera. Defaults to the only defined model, or the model named 'default'.",
+    )
     height: int | None = Field(
         default=None,
         title="Detect height",

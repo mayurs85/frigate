@@ -97,7 +97,9 @@ class FrigateApp:
         self.metrics_manager = manager
         self.audio_process: mp.Process | None = None
         self.stop_event = stop_event
-        self.detection_queue: Queue = mp.Queue()
+        self.detection_queues: dict[str, Queue] = {
+            model_key: mp.Queue() for model_key in config.models
+        }
         self.detectors: dict[str, ObjectDetectProcess] = {}
         self.detection_shms: list[mp.shared_memory.SharedMemory] = []
         self.log_queue: Queue = mp.Queue()
@@ -363,20 +365,14 @@ class FrigateApp:
             )
 
     def start_detectors(self) -> None:
-        for name in self.config.cameras.keys():
+        for name, camera_config in self.config.cameras.items():
+            camera_model = self.config.models[camera_config.detect.model]
+
             try:
-                largest_frame = max(
-                    [
-                        det.model.height * det.model.width * 3
-                        if det.model is not None
-                        else 320
-                        for det in self.config.detectors.values()
-                    ]
-                )
                 shm_in = UntrackedSharedMemory(
                     name=name,
                     create=True,
-                    size=largest_frame,
+                    size=camera_model.height * camera_model.width * 3,
                 )
             except FileExistsError:
                 shm_in = UntrackedSharedMemory(name=name)
@@ -391,11 +387,16 @@ class FrigateApp:
             self.detection_shms.append(shm_in)
             self.detection_shms.append(shm_out)
 
-        for name, detector_config in self.config.detectors.items():
+        for name, detector_config in self.config.detector_instances.items():
+            cameras_using_model = [
+                camera_name
+                for camera_name, camera_config in self.config.cameras.items()
+                if camera_config.detect.model == detector_config.model_key
+            ]
             self.detectors[name] = ObjectDetectProcess(
                 name,
-                self.detection_queue,
-                list(self.config.cameras.keys()),
+                self.detection_queues[detector_config.model_key],
+                cameras_using_model,
                 self.config,
                 detector_config,
                 self.stop_event,
@@ -430,7 +431,7 @@ class FrigateApp:
     def start_camera_processor(self) -> None:
         self.camera_maintainer = CameraMaintainer(
             self.config,
-            self.detection_queue,
+            self.detection_queues,
             self.detected_frames_queue,
             self.camera_metrics,
             self.ptz_metrics,
@@ -685,8 +686,9 @@ class FrigateApp:
         for detector in self.detectors.values():
             detector.stop()
 
-        empty_and_close_queue(self.detection_queue)
-        logger.info("Detection queue closed")
+        for detection_queue in self.detection_queues.values():
+            empty_and_close_queue(detection_queue)
+        logger.info("Detection queues closed")
 
         self.detected_frames_processor.join()
         empty_and_close_queue(self.detected_frames_queue)

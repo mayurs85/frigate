@@ -329,6 +329,10 @@
       "label": "Detector specific model path",
       "description": "File path to the detector model binary if required by the chosen detector."
     },
+    "model_key": {
+      "label": "Assigned model name",
+      "description": "Name of the model (key under `models`) this detector instance serves. Set automatically at runtime, users should not set this."
+    },
     "axengine": {
       "label": "AXEngine NPU",
       "description": "AXERA AX650N/AX8850N NPU detector running compiled .axmodel files via the AXEngine runtime."
@@ -454,9 +458,9 @@
       }
     }
   },
-  "model": {
-    "label": "Detection model",
-    "description": "Settings to configure a custom object detection model and its input shape.",
+  "models": {
+    "label": "Detection models",
+    "description": "Named object detection models. Cameras select a model with detect.model; detectors are assigned to models automatically.",
     "path": {
       "label": "Custom object detector model path",
       "description": "Path to a custom detection model file (or plus://<model_id> for Frigate+ models)."
@@ -624,6 +628,10 @@
     "enabled": {
       "label": "Enable object detection",
       "description": "Enable or disable object detection for all cameras; can be overridden per-camera."
+    },
+    "model": {
+      "label": "Detection model name",
+      "description": "Name of the model (key under `models`) used by this camera. Defaults to the only defined model, or the model named 'default'."
     },
     "height": {
       "label": "Detect height",

@@ -159,7 +159,16 @@ class EventProcessor(threading.Thread):
             if width is None or height is None:
                 return
 
-            first_detector = list(self.config.detectors.values())[0]
+            # find a detector instance running this camera's model so the
+            # event records the model that produced it
+            camera_detector = next(
+                (
+                    detector
+                    for detector in self.config.detector_instances.values()
+                    if detector.model_key == camera_config.detect.model
+                ),
+                list(self.config.detectors.values())[0],
+            )
 
             start_time = event_data["start_time"]
             end_time = (
@@ -229,13 +238,13 @@ class EventProcessor(threading.Thread):
                 Event.thumbnail: event_data.get("thumbnail"),
                 Event.has_clip: event_data["has_clip"],
                 Event.has_snapshot: event_data["has_snapshot"],
-                Event.model_hash: first_detector.model.model_hash
-                if first_detector.model
+                Event.model_hash: camera_detector.model.model_hash
+                if camera_detector.model
                 else None,
-                Event.model_type: first_detector.model.model_type
-                if first_detector.model
+                Event.model_type: camera_detector.model.model_type
+                if camera_detector.model
                 else None,
-                Event.detector_type: first_detector.type,
+                Event.detector_type: camera_detector.type,
                 Event.data: {
                     "box": box,
                     "region": region,
